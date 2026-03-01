@@ -1204,9 +1204,6 @@ async function restoreTodayProgress() {
 // Init
 document.addEventListener('DOMContentLoaded', () => {
   updateHeaderDate();
-  // Set trade time to now
-  const now = new Date();
-  document.getElementById('trade-time').value = now.toTimeString().slice(0,5);
   updateDeadlineBadge();
   loadStorage();
 });
@@ -1435,11 +1432,7 @@ async function updateMemo() {
 async function aiEvaluateTrade() {
   const symbol = document.getElementById('trade-symbol').value;
   const dir = document.getElementById('trade-dir').value;
-  const entry = document.getElementById('trade-entry').value;
-  const sl = document.getElementById('trade-sl').value;
-  const tp = document.getElementById('trade-tp').value;
   const note = document.getElementById('trade-note').value;
-  const time = document.getElementById('trade-time').value;
 
   if (!symbol || !dir) {
     toast('⚠️ 最低限、銘柄と方向を入力してください');
@@ -1455,16 +1448,11 @@ async function aiEvaluateTrade() {
 
 銘柄/ペア: ${symbol}
 方向: ${dir}
-エントリー: ${entry || '未入力'}
-損切り: ${sl || '未入力'}
-利確: ${tp || '未入力'}
-記録時刻: ${time || '未入力'}
 シナリオメモ: ${note || '未入力'}
 
 以下の観点で簡潔に評価してください（日本語200文字以内）：
-1. リスクリワード比（入力がある場合）
-2. シナリオの明確さ
-3. 改善アドバイス1点
+1. シナリオの明確さ
+2. 改善アドバイス1点
 最後に 総合評価: A/B/C/D のいずれかを付けてください。`;
 
   try {
