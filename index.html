@@ -1,0 +1,1538 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>朝の習慣トラッカー</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #1a1d24;
+    --border: #2a2d36;
+    --accent: #00e5a0;
+    --accent2: #0088ff;
+    --accent3: #ff6b35;
+    --text: #e8eaf0;
+    --text2: #8890a4;
+    --danger: #ff4757;
+    --success: #00e5a0;
+    --warn: #ffd166;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  header {
+    padding: 24px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    backdrop-filter: blur(10px);
+    background: rgba(10,12,16,0.8);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .header-date {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  .main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px;
+  }
+
+  /* Today score */
+  .score-hero {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .score-hero::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(0,229,160,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .score-ring {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    flex-shrink: 0;
+  }
+
+  .score-ring svg {
+    transform: rotate(-90deg);
+    width: 120px; height: 120px;
+  }
+
+  .score-ring .track {
+    fill: none;
+    stroke: var(--border);
+    stroke-width: 8;
+  }
+
+  .score-ring .fill {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 8;
+    stroke-linecap: round;
+    stroke-dasharray: 339.3;
+    stroke-dashoffset: 339.3;
+    transition: stroke-dashoffset 1s ease;
+    filter: drop-shadow(0 0 6px var(--accent));
+  }
+
+  .score-num {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .score-num .num {
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .score-num .label {
+    font-size: 10px;
+    color: var(--text2);
+    margin-top: 4px;
+  }
+
+  .score-info h1 {
+    font-size: 22px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+
+  .score-info p {
+    color: var(--text2);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .deadline-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,107,53,0.15);
+    border: 1px solid rgba(255,107,53,0.3);
+    color: var(--accent3);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    margin-top: 10px;
+  }
+
+  .deadline-badge.ok {
+    background: rgba(0,229,160,0.1);
+    border-color: rgba(0,229,160,0.3);
+    color: var(--accent);
+  }
+
+  /* Habit cards */
+  .section-title {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text2);
+    margin-bottom: 16px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .habits-grid {
+    display: grid;
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+
+  .habit-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    transition: border-color 0.2s, transform 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .habit-card:hover {
+    border-color: rgba(0,229,160,0.3);
+    transform: translateY(-1px);
+  }
+
+  .habit-card.completed {
+    border-color: rgba(0,229,160,0.4);
+    background: linear-gradient(135deg, var(--surface), rgba(0,229,160,0.03));
+  }
+
+  .habit-card.completed::after {
+    content: '✓';
+    position: absolute;
+    top: 16px; right: 16px;
+    width: 28px; height: 28px;
+    background: var(--accent);
+    color: #000;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    line-height: 28px;
+    text-align: center;
+  }
+
+  .habit-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .habit-icon {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .habit-icon.weight { background: rgba(0,136,255,0.15); }
+  .habit-icon.gym { background: rgba(255,107,53,0.15); }
+  .habit-icon.trade { background: rgba(255,209,102,0.15); }
+
+  .habit-meta h3 {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+
+  .habit-meta p {
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  .habit-data {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+  }
+
+  .habit-data-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+  }
+
+  .habit-data-row .key { color: var(--text2); }
+  .habit-data-row .val { color: var(--text); }
+  .habit-data-row .val.accent { color: var(--accent); }
+  .habit-data-row .val.warn { color: var(--warn); }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'Noto Sans JP', sans-serif;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .btn.primary {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+    font-weight: 700;
+  }
+
+  .btn.primary:hover {
+    background: #00c88a;
+    color: #000;
+  }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    margin-bottom: 14px;
+    position: relative;
+  }
+
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(0,229,160,0.04);
+  }
+
+  .upload-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .upload-zone .upload-label {
+    font-size: 13px;
+    color: var(--text2);
+  }
+
+  .upload-zone .upload-label strong {
+    color: var(--accent);
+  }
+
+  /* AI analysis result */
+  .ai-result {
+    background: rgba(0,229,160,0.06);
+    border: 1px solid rgba(0,229,160,0.2);
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 13px;
+    line-height: 1.7;
+    margin-bottom: 14px;
+    display: none;
+  }
+
+  .ai-result.visible { display: block; }
+
+  .ai-result .ai-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .loading-dots {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .loading-dots span {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: dot-bounce 1.2s ease-in-out infinite;
+  }
+
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes dot-bounce {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+
+  /* Trade scenario */
+  .trade-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .form-group label {
+    font-size: 11px;
+    color: var(--text2);
+    letter-spacing: 0.5px;
+  }
+
+  .form-group input, .form-group select, .form-group textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: 'Noto Sans JP', sans-serif;
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    border-color: var(--accent);
+  }
+
+  .form-group textarea {
+    resize: vertical;
+    min-height: 70px;
+  }
+
+  .trade-inputs.full { grid-template-columns: 1fr; }
+
+  /* History table */
+  .history-section {
+    margin-bottom: 40px;
+  }
+
+  .history-table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead tr {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--text2);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    vertical-align: middle;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .badge.ok { background: rgba(0,229,160,0.15); color: var(--accent); }
+  .badge.miss { background: rgba(255,71,87,0.15); color: var(--danger); }
+  .badge.partial { background: rgba(255,209,102,0.15); color: var(--warn); }
+
+  .empty-state {
+    text-align: center;
+    padding: 48px;
+    color: var(--text2);
+    font-size: 14px;
+  }
+
+  /* Bottom bar */
+  .bottom-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    padding: 16px 32px;
+    background: rgba(10,12,16,0.95);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    backdrop-filter: blur(10px);
+    z-index: 100;
+  }
+
+  .streak-info {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--text2);
+  }
+
+  .streak-info strong {
+    color: var(--warn);
+    font-size: 16px;
+  }
+
+  /* Notification toast */
+  .toast {
+    position: fixed;
+    top: 80px; right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-size: 13px;
+    color: var(--accent);
+    z-index: 999;
+    transform: translateX(120%);
+    transition: transform 0.3s ease;
+    max-width: 300px;
+  }
+
+  .toast.show { transform: translateX(0); }
+
+  /* Image preview */
+  .img-preview {
+    max-width: 100%;
+    max-height: 180px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    object-fit: contain;
+    display: none;
+  }
+
+  .img-preview.visible { display: block; }
+
+  @media (max-width: 600px) {
+    .score-hero { flex-direction: column; gap: 20px; }
+    .trade-inputs { grid-template-columns: 1fr; }
+    header { padding: 16px; }
+    .main { padding: 24px 16px 100px; }
+  }
+
+  /* ── Settings Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(6px);
+    z-index: 500;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    width: min(520px, 92vw);
+    transform: translateY(20px);
+    transition: transform 0.25s;
+    position: relative;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+
+  .modal-title {
+    font-size: 18px; font-weight: 500;
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .modal-sub {
+    font-size: 13px; color: var(--text2);
+    margin-bottom: 24px; line-height: 1.6;
+  }
+  .modal-close {
+    position: absolute; top: 20px; right: 20px;
+    background: none; border: none; color: var(--text2);
+    font-size: 20px; cursor: pointer; line-height: 1;
+    padding: 4px 8px; border-radius: 6px;
+    transition: color 0.15s, background 0.15s;
+  }
+  .modal-close:hover { color: var(--text); background: var(--surface2); }
+
+  .settings-section {
+    margin-bottom: 20px;
+  }
+  .settings-section-label {
+    font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--text2); font-family: 'DM Mono', monospace;
+    margin-bottom: 10px;
+  }
+  .settings-row {
+    display: flex; gap: 10px; align-items: flex-end;
+  }
+  .settings-row .form-group { flex: 1; }
+
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--border); display: inline-block;
+    margin-right: 6px; vertical-align: middle;
+    transition: background 0.3s;
+  }
+  .status-dot.ok { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .status-dot.err { background: var(--danger); }
+
+  .sheets-status {
+    font-size: 12px; color: var(--text2);
+    margin-top: 12px; font-family: 'DM Mono', monospace;
+    min-height: 18px;
+  }
+
+  .help-note {
+    background: var(--surface2);
+    border-radius: 8px; padding: 12px 14px;
+    font-size: 12px; color: var(--text2); line-height: 1.7;
+    margin-top: 16px;
+  }
+  .help-note a { color: var(--accent); text-decoration: none; }
+  .help-note a:hover { text-decoration: underline; }
+
+  .sheets-sync-btn {
+    width: 100%; justify-content: center; margin-top: 4px;
+  }
+
+  /* Sheets indicator in bottom bar */
+  .sheets-indicator {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    display: flex; align-items: center; gap: 6px;
+    color: var(--text2);
+    cursor: pointer;
+    padding: 4px 8px; border-radius: 6px;
+    transition: background 0.15s;
+  }
+  .sheets-indicator:hover { background: var(--surface2); }
+</style>
+
+</head>
+<body>
+
+<header>
+  <div class="logo">⬡ Morning OS</div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="header-date" id="headerDate"></div>
+    <button class="btn" onclick="openSettings()" style="padding:6px 12px;font-size:12px">⚙️ 設定</button>
+  </div>
+</header>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeSettings()">✕</button>
+    <div class="modal-title">⚙️ 設定</div>
+    <div class="modal-sub">Google Sheets連携を設定すると、「今日を保存」のたびに自動でシートに書き込まれます。</div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">Google Sheets 連携</div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>スプレッドシート ID</label>
+        <input type="text" id="cfg-sheet-id" placeholder="URLの /d/ と /edit の間のID">
+      </div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>シート名（タブ名）</label>
+        <input type="text" id="cfg-sheet-name" placeholder="例: 習慣ログ" value="習慣ログ">
+      </div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>Google Apps Script Web App URL</label>
+        <input type="text" id="cfg-gas-url" placeholder="https://script.google.com/macros/s/...">
+      </div>
+      <div class="btn-row" style="margin-top:4px">
+        <button class="btn" onclick="testSheetsConnection()">🔌 接続テスト</button>
+        <button class="btn primary sheets-sync-btn" onclick="saveSettings()">設定を保存</button>
+      </div>
+      <div class="sheets-status" id="sheetsStatus">
+        <span class="status-dot" id="statusDot"></span>未設定
+      </div>
+    </div>
+
+    <div class="help-note">
+      <strong style="color:var(--text)">📋 セットアップ手順</strong><br>
+      1. <a href="https://sheets.new" target="_blank">Google Sheets</a> で新規スプレッドシートを作成<br>
+      2. 「拡張機能」→「Apps Script」を開く<br>
+      3. 下記のコードを貼り付けてデプロイ（ウェブアプリとして公開）<br>
+      4. 生成されたURLをここに貼り付ける<br><br>
+      <strong style="color:var(--accent);font-family:'DM Mono',monospace;font-size:11px">▸ Apps Script コードをコピー</strong><br>
+      <button class="btn" style="margin-top:8px;font-size:11px" onclick="copyGASCode()">📋 GASコードをコピー</button>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <!-- Score Hero -->
+  <div class="score-hero">
+    <div class="score-ring">
+      <svg viewBox="0 0 120 120">
+        <circle class="track" cx="60" cy="60" r="54"/>
+        <circle class="fill" cx="60" cy="60" r="54" id="scoreCircle"/>
+      </svg>
+      <div class="score-num">
+        <span class="num" id="scoreNum">0</span>
+        <span class="label">/ 3</span>
+      </div>
+    </div>
+    <div class="score-info">
+      <h1 id="scoreTitle">今日の習慣を記録しよう</h1>
+      <p id="scoreDesc">3つの習慣をすべて完了して朝を制しよう。目標は8:00まで。</p>
+      <div class="deadline-badge" id="deadlineBadge">⏰ 目標 8:00 AM</div>
+    </div>
+  </div>
+
+  <!-- Habit 1: Weight -->
+  <div class="section-title">今日のチェックイン</div>
+  <div class="habits-grid">
+
+    <div class="habit-card" id="card-weight">
+      <div class="habit-header">
+        <div class="habit-icon weight">⚖️</div>
+        <div class="habit-meta">
+          <h3>体重測定</h3>
+          <p>iPhoneヘルスケアのスクショから自動で記録</p>
+        </div>
+      </div>
+
+      <div class="upload-zone" id="zone-weight">
+        <input type="file" accept="image/*" onchange="handleImage('weight', this)">
+        <div class="upload-label">📷 スクショをアップロード or ドラッグ<br><strong>AI が体重・時刻を自動抽出</strong></div>
+      </div>
+
+      <img class="img-preview" id="preview-weight">
+      <div class="ai-result" id="result-weight">
+        <span class="ai-badge">▸ AI ANALYSIS</span>
+        <div id="result-weight-text"></div>
+      </div>
+
+      <div class="habit-data" id="data-weight" style="display:none">
+        <div class="habit-data-row"><span class="key">体重</span><span class="val accent" id="val-weight">--</span></div>
+        <div class="habit-data-row"><span class="key">記録時刻</span><span class="val" id="val-weight-time">--</span></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn" onclick="analyzeImage('weight')">🤖 AI解析</button>
+        <button class="btn" onclick="manualInput('weight')">✏️ 手入力</button>
+        <button class="btn primary" onclick="completeHabit('weight')">完了</button>
+      </div>
+    </div>
+
+    <!-- Habit 2: Exercise -->
+    <div class="habit-card" id="card-gym">
+      <div class="habit-header">
+        <div class="habit-icon gym">🏋️</div>
+        <div class="habit-meta">
+          <h3>運動（ジム / ストレッチ）</h3>
+          <p>運動アプリのスクショから運動量・時間を記録</p>
+        </div>
+      </div>
+
+      <div class="upload-zone" id="zone-gym">
+        <input type="file" accept="image/*" onchange="handleImage('gym', this)">
+        <div class="upload-label">📷 スクショをアップロード or ドラッグ<br><strong>AI が運動データを自動抽出</strong></div>
+      </div>
+
+      <img class="img-preview" id="preview-gym">
+      <div class="ai-result" id="result-gym">
+        <span class="ai-badge">▸ AI ANALYSIS</span>
+        <div id="result-gym-text"></div>
+      </div>
+
+      <div class="habit-data" id="data-gym" style="display:none">
+        <div class="habit-data-row"><span class="key">種類</span><span class="val" id="val-gym-type">--</span></div>
+        <div class="habit-data-row"><span class="key">時間</span><span class="val accent" id="val-gym-duration">--</span></div>
+        <div class="habit-data-row"><span class="key">カロリー</span><span class="val" id="val-gym-cal">--</span></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn" onclick="analyzeImage('gym')">🤖 AI解析</button>
+        <button class="btn" onclick="manualInput('gym')">✏️ 手入力</button>
+        <button class="btn primary" onclick="completeHabit('gym')">完了</button>
+      </div>
+    </div>
+
+    <!-- Habit 3: Trade -->
+    <div class="habit-card" id="card-trade">
+      <div class="habit-header">
+        <div class="habit-icon trade">📈</div>
+        <div class="habit-meta">
+          <h3>トレードシナリオ</h3>
+          <p>8:00までにシナリオを決定・記録する</p>
+        </div>
+      </div>
+
+      <div class="trade-inputs">
+        <div class="form-group">
+          <label>銘柄 / ペア</label>
+          <input type="text" id="trade-symbol" placeholder="例: USD/JPY, 7203">
+        </div>
+        <div class="form-group">
+          <label>方向</label>
+          <select id="trade-dir">
+            <option value="">選択...</option>
+            <option value="買い">買い（ロング）</option>
+            <option value="売り">売り（ショート）</option>
+            <option value="様子見">様子見</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>エントリー価格</label>
+          <input type="text" id="trade-entry" placeholder="例: 150.50">
+        </div>
+        <div class="form-group">
+          <label>損切りライン</label>
+          <input type="text" id="trade-sl" placeholder="例: 150.00">
+        </div>
+        <div class="form-group">
+          <label>利確ライン</label>
+          <input type="text" id="trade-tp" placeholder="例: 151.50">
+        </div>
+        <div class="form-group">
+          <label>記録時刻</label>
+          <input type="time" id="trade-time">
+        </div>
+      </div>
+      <div class="trade-inputs full">
+        <div class="form-group">
+          <label>シナリオ根拠・メモ</label>
+          <textarea id="trade-note" placeholder="なぜこのシナリオにしたか記録…"></textarea>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn" onclick="aiEvaluateTrade()">🤖 AI評価</button>
+        <button class="btn primary" onclick="completeHabit('trade')">✓ シナリオ確定</button>
+      </div>
+
+      <div class="ai-result" id="result-trade" style="margin-top:14px">
+        <span class="ai-badge">▸ AI EVALUATION</span>
+        <div id="result-trade-text"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="history-section">
+    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>記録履歴</span>
+      <button class="btn" onclick="exportCSV()">📥 CSV出力</button>
+    </div>
+    <div class="history-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>日付</th>
+            <th>体重</th>
+            <th>体重時刻</th>
+            <th>運動</th>
+            <th>運動時間</th>
+            <th>シナリオ</th>
+            <th>完了時刻</th>
+            <th>評価</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody">
+          <tr><td colspan="8" class="empty-state">まだ記録がありません</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="bottom-bar">
+  <div style="display:flex;align-items:center;gap:16px">
+    <div class="streak-info">🔥 連続 <strong id="streakNum">0</strong> 日</div>
+    <div class="sheets-indicator" id="sheetsIndicator" onclick="openSettings()" title="Google Sheets設定">
+      <span class="status-dot" id="bottomStatusDot"></span>
+      <span id="bottomStatusText">Sheets未設定</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px">
+    <button class="btn" onclick="clearToday()">今日をリセット</button>
+    <button class="btn primary" onclick="saveToday()">💾 保存 &amp; Sheets同期</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// State
+const state = {
+  weight: { completed: false, value: null, time: null, imageData: null },
+  gym: { completed: false, type: null, duration: null, cal: null, imageData: null },
+  trade: { completed: false, symbol: null, dir: null, entry: null, sl: null, tp: null, note: null, time: null },
+  history: []
+};
+
+// Config (Google Sheets)
+const cfg = { gasUrl: '', sheetId: '', sheetName: '習慣ログ' };
+
+// ── Settings Modal ──
+function openSettings() {
+  document.getElementById('cfg-sheet-id').value = cfg.sheetId;
+  document.getElementById('cfg-sheet-name').value = cfg.sheetName;
+  document.getElementById('cfg-gas-url').value = cfg.gasUrl;
+  document.getElementById('settingsModal').classList.add('open');
+}
+function closeSettings() {
+  document.getElementById('settingsModal').classList.remove('open');
+}
+document.getElementById('settingsModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('settingsModal')) closeSettings();
+});
+
+async function saveSettings() {
+  cfg.sheetId = document.getElementById('cfg-sheet-id').value.trim();
+  cfg.sheetName = document.getElementById('cfg-sheet-name').value.trim() || '習慣ログ';
+  cfg.gasUrl = document.getElementById('cfg-gas-url').value.trim();
+  try {
+    await window.storage.set('habit-cfg', JSON.stringify(cfg));
+  } catch(e) {}
+  updateSheetsStatus();
+  toast('✅ 設定を保存しました');
+  closeSettings();
+}
+
+async function testSheetsConnection() {
+  const url = document.getElementById('cfg-gas-url').value.trim();
+  if (!url) { setSheetsStatus('err', 'URLが入力されていません'); return; }
+  setSheetsStatus('testing', 'テスト中...');
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    const res = await fetch(url + '?action=ping', {
+      method: 'GET',
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      let msg = '接続成功！';
+      try {
+        const json = await res.json();
+        if (json.status === 'ok') msg = '✅ GAS接続成功！';
+      } catch(e) {}
+      setSheetsStatus('ok', msg);
+      toast('🔌 接続成功！URLは正しいです');
+    } else {
+      setSheetsStatus('err', `HTTPエラー: ${res.status}`);
+    }
+  } catch(e) {
+    if (e.name === 'AbortError') {
+      setSheetsStatus('err', 'タイムアウト（10秒）— URLを確認してください');
+      toast('⚠️ タイムアウト。GASのデプロイURLが正しいか確認を');
+    } else if (e.message.includes('Failed to fetch') || e.message.includes('CORS')) {
+      // GAS often blocks CORS on ping but still works for no-cors data sends
+      setSheetsStatus('ok', '⚠️ CORSブロック（データ送信は動作します）');
+      toast('ℹ️ CORSエラーですが、データ保存は正常に動く場合があります');
+    } else {
+      setSheetsStatus('err', 'エラー: ' + e.message);
+    }
+  }
+}
+
+function setSheetsStatus(type, msg) {
+  const dot = document.getElementById('statusDot');
+  const status = document.getElementById('sheetsStatus');
+  dot.className = 'status-dot' + (type === 'ok' ? ' ok' : type === 'err' ? ' err' : '');
+  status.innerHTML = `<span class="status-dot${type === 'ok' ? ' ok' : type === 'err' ? ' err' : ''}"></span>${msg}`;
+}
+
+function updateSheetsStatus() {
+  const bottomDot = document.getElementById('bottomStatusDot');
+  const bottomText = document.getElementById('bottomStatusText');
+  if (cfg.gasUrl) {
+    bottomDot.className = 'status-dot ok';
+    bottomText.textContent = 'Sheets連携中';
+  } else {
+    bottomDot.className = 'status-dot';
+    bottomText.textContent = 'Sheets未設定';
+  }
+}
+
+// Sync to Google Sheets via GAS
+async function syncToSheets(row) {
+  if (!cfg.gasUrl) return false;
+  try {
+    const params = new URLSearchParams({
+      action: 'append',
+      sheetName: cfg.sheetName,
+      data: JSON.stringify([
+        row.date, row.weight, row.weightTime,
+        row.gymType, row.gymDuration, row.gymCal || '--',
+        row.tradeSymbol, row.tradeDir, row.tradeEntry || '--',
+        row.tradeSL || '--', row.tradeTP || '--',
+        row.tradeTime, row.tradeNote || '',
+        row.score + '/3'
+      ])
+    });
+    await fetch(cfg.gasUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+function copyGASCode() {
+  const code = `// Google Apps Script - Morning OS連携
+// デプロイ: ウェブアプリとして公開 → 実行ユーザー:自分 / アクセス権：全員
+
+function doGet(e) {
+  // CORSヘッダーを付けてレスポンスを返すヘルパー
+  function respond(obj) {
+    return ContentService
+      .createTextOutput(JSON.stringify(obj))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  const action = e.parameter.action;
+
+  if (action === 'ping') {
+    return respond({status: 'ok', message: 'Morning OS GAS Ready'});
+  }
+
+  if (action === 'append') {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheetName = e.parameter.sheetName || '習慣ログ';
+    let sheet = ss.getSheetByName(sheetName);
+
+    if (!sheet) {
+      sheet = ss.insertSheet(sheetName);
+      sheet.appendRow(['日付','体重','体重時刻','運動種類','運動時間','カロリー',
+        '銘柄','方向','エントリー','損切り','利確','記録時刻','メモ','スコア']);
+      sheet.getRange(1,1,1,14).setFontWeight('bold')
+        .setBackground('#1a1a2e').setFontColor('#ffffff');
+    }
+
+    const data = JSON.parse(e.parameter.data);
+    sheet.appendRow(data);
+
+    return respond({status: 'ok', appended: data.length});
+  }
+
+  return respond({status: 'ok', message: 'unknown action'});
+}`;
+  navigator.clipboard.writeText(code).then(() => {
+    toast('📋 GASコードをコピーしました！Apps Scriptに貼り付けてください');
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = code;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    toast('📋 コピーしました');
+  });
+}
+
+// Load from storage
+async function loadStorage() {
+  try {
+    const h = await window.storage.get('habit-history');
+    if (h) state.history = JSON.parse(h.value);
+    renderHistory();
+    updateStreak();
+  } catch(e) {}
+  try {
+    const c = await window.storage.get('habit-cfg');
+    if (c) {
+      const saved = JSON.parse(c.value);
+      Object.assign(cfg, saved);
+      updateSheetsStatus();
+    }
+  } catch(e) {}
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+  updateHeaderDate();
+  // Set trade time to now
+  const now = new Date();
+  document.getElementById('trade-time').value = now.toTimeString().slice(0,5);
+  updateDeadlineBadge();
+  loadStorage();
+});
+
+function updateHeaderDate() {
+  const d = new Date();
+  document.getElementById('headerDate').textContent = 
+    d.toLocaleDateString('ja-JP', {year:'numeric', month:'long', day:'numeric', weekday:'long'});
+}
+
+function updateDeadlineBadge() {
+  const now = new Date();
+  const deadline = new Date();
+  deadline.setHours(8, 0, 0, 0);
+  const badge = document.getElementById('deadlineBadge');
+  if (now < deadline) {
+    const diff = Math.floor((deadline - now) / 60000);
+    badge.textContent = `⏰ 8:00 まであと ${diff} 分`;
+    badge.className = 'deadline-badge';
+  } else {
+    badge.textContent = '✓ 8:00 AM 完了';
+    badge.className = 'deadline-badge ok';
+  }
+}
+
+setInterval(updateDeadlineBadge, 30000);
+
+// Image handling
+const imageCache = {};
+
+function handleImage(habit, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    imageCache[habit] = e.target.result;
+    const preview = document.getElementById(`preview-${habit}`);
+    preview.src = e.target.result;
+    preview.classList.add('visible');
+    toast(`📷 スクショを読み込みました。「AI解析」を押してください`);
+  };
+  reader.readAsDataURL(file);
+}
+
+// AI Analysis
+async function analyzeImage(habit) {
+  const imageData = imageCache[habit];
+  if (!imageData) {
+    toast('⚠️ まずスクショをアップロードしてください');
+    return;
+  }
+
+  const resultEl = document.getElementById(`result-${habit}`);
+  const textEl = document.getElementById(`result-${habit}-text`);
+  resultEl.classList.add('visible');
+  textEl.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div> AI解析中...';
+
+  const base64 = imageData.split(',')[1];
+  const mediaType = imageData.split(';')[0].split(':')[1];
+
+  const prompts = {
+    weight: `このiPhoneのヘルスケアアプリや体重計アプリのスクリーンショットを見てください。
+以下の情報を抽出して日本語で回答してください：
+1. 体重（kg）
+2. 記録された日時・時刻
+3. 前回との差分（あれば）
+JSON形式で: {"weight": "xx.x kg", "time": "HH:MM", "diff": "+/-x.x kg または null"}
+その後、簡単なコメントを1文で。`,
+
+    gym: `このフィットネスアプリ（Apple Fitness、Nike Run、Garmin等）のスクリーンショットを見てください。
+以下の情報を抽出して日本語で回答してください：
+1. 運動の種類（ランニング、ジム、ストレッチ等）
+2. 運動時間（分）
+3. 消費カロリー（あれば）
+4. その他の指標（心拍数、距離等）
+JSON形式で: {"type": "種類", "duration": "xx分", "calories": "xxx kcal または null", "extra": "追加情報"}
+その後、簡単なコメントを1文で。`
+  };
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+            { type: 'text', text: prompts[habit] }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content.map(c => c.text || '').join('');
+    
+    // Try to extract JSON
+    const jsonMatch = text.match(/\{[\s\S]*?\}/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (habit === 'weight') {
+          state.weight.value = parsed.weight;
+          state.weight.time = parsed.time;
+          document.getElementById('val-weight').textContent = parsed.weight || '--';
+          document.getElementById('val-weight-time').textContent = parsed.time || '--';
+          document.getElementById('data-weight').style.display = 'block';
+        } else if (habit === 'gym') {
+          state.gym.type = parsed.type;
+          state.gym.duration = parsed.duration;
+          state.gym.cal = parsed.calories;
+          document.getElementById('val-gym-type').textContent = parsed.type || '--';
+          document.getElementById('val-gym-duration').textContent = parsed.duration || '--';
+          document.getElementById('val-gym-cal').textContent = parsed.calories || '--';
+          document.getElementById('data-gym').style.display = 'block';
+        }
+      } catch(e) {}
+    }
+    
+    // Remove JSON from display text
+    const displayText = text.replace(/\{[\s\S]*?\}/, '').trim();
+    textEl.innerHTML = displayText || text;
+    toast('✅ AI解析完了！');
+
+  } catch(e) {
+    textEl.innerHTML = `⚠️ 解析エラー: ${e.message}`;
+  }
+}
+
+// Manual input
+function manualInput(habit) {
+  if (habit === 'weight') {
+    const w = prompt('体重を入力 (例: 70.5)');
+    const t = prompt('記録時刻を入力 (例: 07:15)');
+    if (w) {
+      state.weight.value = w + ' kg';
+      state.weight.time = t || '--';
+      document.getElementById('val-weight').textContent = w + ' kg';
+      document.getElementById('val-weight-time').textContent = t || '--';
+      document.getElementById('data-weight').style.display = 'block';
+      toast('✏️ 手入力で記録しました');
+    }
+  } else if (habit === 'gym') {
+    const type = prompt('運動の種類 (例: ジム、ランニング、ストレッチ)');
+    const dur = prompt('運動時間 (例: 45分)');
+    const cal = prompt('カロリー (例: 300 kcal、不明な場合は空欄)');
+    if (type) {
+      state.gym.type = type;
+      state.gym.duration = dur || '--';
+      state.gym.cal = cal || '--';
+      document.getElementById('val-gym-type').textContent = type;
+      document.getElementById('val-gym-duration').textContent = dur || '--';
+      document.getElementById('val-gym-cal').textContent = cal || '--';
+      document.getElementById('data-gym').style.display = 'block';
+      toast('✏️ 手入力で記録しました');
+    }
+  }
+}
+
+// Complete habit
+function completeHabit(habit) {
+  const card = document.getElementById(`card-${habit}`);
+  
+  if (habit === 'trade') {
+    const symbol = document.getElementById('trade-symbol').value;
+    const dir = document.getElementById('trade-dir').value;
+    if (!symbol || !dir) {
+      toast('⚠️ 銘柄と方向を入力してください');
+      return;
+    }
+    state.trade = {
+      completed: true,
+      symbol,
+      dir,
+      entry: document.getElementById('trade-entry').value,
+      sl: document.getElementById('trade-sl').value,
+      tp: document.getElementById('trade-tp').value,
+      note: document.getElementById('trade-note').value,
+      time: document.getElementById('trade-time').value
+    };
+  } else {
+    state[habit].completed = true;
+  }
+
+  card.classList.add('completed');
+  updateScore();
+  toast(`✅ ${habit === 'weight' ? '体重測定' : habit === 'gym' ? '運動' : 'トレードシナリオ'}を完了！`);
+}
+
+// AI trade evaluation
+async function aiEvaluateTrade() {
+  const symbol = document.getElementById('trade-symbol').value;
+  const dir = document.getElementById('trade-dir').value;
+  const entry = document.getElementById('trade-entry').value;
+  const sl = document.getElementById('trade-sl').value;
+  const tp = document.getElementById('trade-tp').value;
+  const note = document.getElementById('trade-note').value;
+  const time = document.getElementById('trade-time').value;
+
+  if (!symbol || !dir) {
+    toast('⚠️ 最低限、銘柄と方向を入力してください');
+    return;
+  }
+
+  const resultEl = document.getElementById('result-trade');
+  const textEl = document.getElementById('result-trade-text');
+  resultEl.classList.add('visible');
+  textEl.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div> シナリオを評価中...';
+
+  const prompt = `あなたはプロのトレードコーチです。以下のトレードシナリオを評価してください。
+
+銘柄/ペア: ${symbol}
+方向: ${dir}
+エントリー: ${entry || '未入力'}
+損切り: ${sl || '未入力'}
+利確: ${tp || '未入力'}
+記録時刻: ${time || '未入力'}
+シナリオメモ: ${note || '未入力'}
+
+以下の観点で簡潔に評価してください（日本語200文字以内）：
+1. リスクリワード比（入力がある場合）
+2. シナリオの明確さ
+3. 改善アドバイス1点
+最後に 総合評価: A/B/C/D のいずれかを付けてください。`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content.map(c => c.text || '').join('');
+    textEl.innerHTML = text;
+    toast('🤖 AI評価完了！');
+  } catch(e) {
+    textEl.innerHTML = `⚠️ エラー: ${e.message}`;
+  }
+}
+
+// Score update
+function updateScore() {
+  const completed = [state.weight.completed, state.gym.completed, state.trade.completed]
+    .filter(Boolean).length;
+
+  document.getElementById('scoreNum').textContent = completed;
+
+  const circumference = 339.3;
+  const offset = circumference - (circumference * completed / 3);
+  document.getElementById('scoreCircle').style.strokeDashoffset = offset;
+
+  const titles = [
+    '今日の習慣を記録しよう',
+    '順調！残り2つ',
+    'あと1つで完了！',
+    '🎉 今日の朝ルーティン完了！'
+  ];
+  document.getElementById('scoreTitle').textContent = titles[completed];
+  
+  if (completed === 3) {
+    document.getElementById('scoreCircle').style.stroke = 'var(--accent)';
+  }
+}
+
+// Save today
+async function saveToday() {
+  const today = new Date().toLocaleDateString('ja-JP', {month:'2-digit', day:'2-digit'});
+  
+  const row = {
+    date: new Date().toISOString().split('T')[0],
+    dateLabel: today,
+    weight: state.weight.value || '--',
+    weightTime: state.weight.time || '--',
+    gymType: state.gym.type || '--',
+    gymDuration: state.gym.duration || '--',
+    gymCal: state.gym.cal || '--',
+    tradeSymbol: state.trade.symbol || '--',
+    tradeDir: state.trade.dir || '--',
+    tradeEntry: state.trade.entry || '--',
+    tradeSL: state.trade.sl || '--',
+    tradeTP: state.trade.tp || '--',
+    tradeTime: state.trade.time || '--',
+    tradeNote: state.trade.note || '',
+    score: [state.weight.completed, state.gym.completed, state.trade.completed].filter(Boolean).length
+  };
+
+  // Remove duplicate date
+  state.history = state.history.filter(r => r.date !== row.date);
+  state.history.unshift(row);
+
+  try {
+    await window.storage.set('habit-history', JSON.stringify(state.history));
+  } catch(e) {}
+
+  // Sync to Google Sheets
+  if (cfg.gasUrl) {
+    toast('📡 Google Sheetsに同期中...');
+    const ok = await syncToSheets(row);
+    toast(ok ? '✅ Sheetsに同期完了！' : '⚠️ 保存済み（Sheets同期失敗）');
+  } else {
+    toast('💾 保存しました！（Sheets未設定）');
+  }
+
+  renderHistory();
+  updateStreak();
+}
+
+function renderHistory() {
+  const tbody = document.getElementById('historyBody');
+  if (state.history.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">まだ記録がありません</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = state.history.slice(0, 30).map(r => {
+    const badgeClass = r.score === 3 ? 'ok' : r.score === 0 ? 'miss' : 'partial';
+    const badgeLabel = r.score === 3 ? '✓ 完璧' : r.score === 0 ? '✗ 未完' : `△ ${r.score}/3`;
+    return `<tr>
+      <td>${r.dateLabel}</td>
+      <td>${r.weight}</td>
+      <td>${r.weightTime}</td>
+      <td>${r.gymType}</td>
+      <td>${r.gymDuration}</td>
+      <td>${r.tradeSymbol} ${r.tradeDir !== '--' ? '(' + r.tradeDir + ')' : ''}</td>
+      <td>${r.tradeTime}</td>
+      <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function updateStreak() {
+  let streak = 0;
+  const sorted = [...state.history].sort((a,b) => b.date.localeCompare(a.date));
+  let prev = null;
+  for (const r of sorted) {
+    if (r.score === 3) {
+      if (!prev) { streak = 1; prev = r.date; }
+      else {
+        const d1 = new Date(prev), d2 = new Date(r.date);
+        const diff = (d1 - d2) / 86400000;
+        if (diff <= 1) { streak++; prev = r.date; }
+        else break;
+      }
+    } else break;
+  }
+  document.getElementById('streakNum').textContent = streak;
+}
+
+function clearToday() {
+  if (!confirm('今日の記録をリセットしますか？')) return;
+  ['weight','gym','trade'].forEach(h => {
+    state[h] = h === 'trade' 
+      ? { completed: false, symbol: null, dir: null, entry: null, sl: null, tp: null, note: null, time: null }
+      : { completed: false, value: null, time: null, imageData: null };
+    document.getElementById(`card-${h}`).classList.remove('completed');
+    const result = document.getElementById(`result-${h}`);
+    if (result) result.classList.remove('visible');
+  });
+  document.getElementById('data-weight').style.display = 'none';
+  document.getElementById('data-gym').style.display = 'none';
+  document.getElementById('scoreNum').textContent = '0';
+  document.getElementById('scoreCircle').style.strokeDashoffset = '339.3';
+  document.getElementById('scoreTitle').textContent = '今日の習慣を記録しよう';
+  toast('🔄 リセットしました');
+}
+
+function exportCSV() {
+  if (state.history.length === 0) { toast('⚠️ データがありません'); return; }
+  const headers = ['日付','体重','体重時刻','運動種類','運動時間','銘柄','方向','シナリオ時刻','スコア'];
+  const rows = state.history.map(r => [
+    r.date, r.weight, r.weightTime, r.gymType, r.gymDuration,
+    r.tradeSymbol, r.tradeDir, r.tradeTime, r.score + '/3'
+  ]);
+  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `habit-log-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  toast('📥 CSVをダウンロードしました');
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// Drag and drop
+document.querySelectorAll('.upload-zone').forEach(zone => {
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const habit = zone.id.replace('zone-','');
+      const input = zone.querySelector('input');
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      input.files = dt.files;
+      handleImage(habit, input);
+    }
+  });
+});
+</script>
+</body>
+</html>
