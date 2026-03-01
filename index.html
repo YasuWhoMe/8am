@@ -944,6 +944,22 @@ const state = {
   history: []
 };
 
+// ── Storage abstraction (localStorage for GitHub Pages) ──
+const store = {
+  async get(key) {
+    try {
+      const val = localStorage.getItem(key);
+      return val ? { value: val } : null;
+    } catch(e) { return null; }
+  },
+  async set(key, value) {
+    try { localStorage.setItem(key, value); return true; } catch(e) { return null; }
+  },
+  async delete(key) {
+    try { localStorage.removeItem(key); return true; } catch(e) { return null; }
+  }
+};
+
 // Config (Google Sheets)
 const cfg = { gasUrl: '', sheetId: '', sheetName: '習慣ログ' };
 
@@ -966,7 +982,7 @@ async function saveSettings() {
   cfg.sheetName = document.getElementById('cfg-sheet-name').value.trim() || '習慣ログ';
   cfg.gasUrl = document.getElementById('cfg-gas-url').value.trim();
   try {
-    await window.storage.set('habit-cfg', JSON.stringify(cfg));
+    await store.set('habit-cfg', JSON.stringify(cfg));
   } catch(e) {}
   updateSheetsStatus();
   toast('✅ 設定を保存しました');
@@ -1109,13 +1125,13 @@ function doGet(e) {
 // Load from storage
 async function loadStorage() {
   try {
-    const h = await window.storage.get('habit-history');
+    const h = await store.get('habit-history');
     if (h) state.history = JSON.parse(h.value);
     renderHistory();
     updateStreak();
   } catch(e) {}
   try {
-    const c = await window.storage.get('habit-cfg');
+    const c = await store.get('habit-cfg');
     if (c) {
       const saved = JSON.parse(c.value);
       Object.assign(cfg, saved);
@@ -1136,14 +1152,14 @@ async function saveTodayProgress() {
     trade: { completed: state.trade.completed, symbol: state.trade.symbol, dir: state.trade.dir, time: state.trade.time, note: state.trade.note }
   };
   try {
-    await window.storage.set('habit-today', JSON.stringify(progress));
+    await store.set('habit-today', JSON.stringify(progress));
   } catch(e) {}
 }
 
 // リロード時に今日の進捗を復元
 async function restoreTodayProgress() {
   try {
-    const t = await window.storage.get('habit-today');
+    const t = await store.get('habit-today');
     if (!t) return;
     const progress = JSON.parse(t.value);
     const today = new Date().toISOString().split('T')[0];
@@ -1518,7 +1534,7 @@ async function saveToday() {
   state.history.unshift(row);
 
   try {
-    await window.storage.set('habit-history', JSON.stringify(state.history));
+    await store.set('habit-history', JSON.stringify(state.history));
   } catch(e) {}
 
   if (cfg.gasUrl) {
@@ -1596,7 +1612,7 @@ function clearToday() {
   document.getElementById('scoreCircle').style.strokeDashoffset = '339.3';
   document.getElementById('scoreTitle').textContent = '今日の習慣を記録しよう';
   // 進捗ストレージもクリア
-  try { window.storage.delete('habit-today'); } catch(e) {}
+  try { store.delete('habit-today'); } catch(e) {}
   toast('🔄 リセットしました');
 }
 
