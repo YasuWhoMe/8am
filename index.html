@@ -1363,7 +1363,7 @@ async function syncToSheets(row) {
         row.date, row.weight, row.weightTime,
         row.gymType, row.gymDuration, row.gymCal,
         row.tradeSymbol, row.tradeDir, row.tradeTime,
-        row.tradeNote, row.score + '/3', row.bonusScore + '/3'
+        row.tradeNote, row.score + '/3', row.bonusScore
       ])
     });
     await fetch(cfg.gasUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
