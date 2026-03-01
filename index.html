@@ -714,6 +714,17 @@
       </div>
     </div>
 
+    <div class="settings-section">
+      <div class="settings-section-label">📈 通貨ペア / 銘柄リスト</div>
+      <div id="pair-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="new-pair-input" placeholder="例: USD/JPY, 7203.T" 
+          style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none"
+          onkeydown="if(event.key==='Enter')addPair()">
+        <button class="btn primary" onclick="addPair()">＋ 追加</button>
+      </div>
+    </div>
+
     <div class="help-note">
       <strong style="color:var(--text)">📋 セットアップ手順</strong><br>
       1. <a href="https://sheets.new" target="_blank">Google Sheets</a> で新規スプレッドシートを作成<br>
@@ -833,7 +844,9 @@
         <div class="trade-inputs">
           <div class="form-group">
             <label>銘柄 / ペア</label>
-            <input type="text" id="trade-symbol" placeholder="例: USD/JPY, 7203">
+            <select id="trade-symbol">
+              <option value="">選択...</option>
+            </select>
           </div>
           <div class="form-group">
             <label>方向</label>
@@ -963,11 +976,76 @@ const store = {
 // Config (Google Sheets)
 const cfg = { gasUrl: '', sheetId: '', sheetName: '習慣ログ' };
 
+// 通貨ペアリスト
+let pairs = ['USD/JPY', 'EUR/JPY', 'GBP/JPY', 'XAU/USD'];
+
+function renderPairList() {
+  const list = document.getElementById('pair-list');
+  if (!list) return;
+  list.innerHTML = pairs.map((p, i) => `
+    <div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px">
+      <span style="flex:1;font-size:13px;font-family:'DM Mono',monospace">${p}</span>
+      <button onclick="movePair(${i},-1)" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px;padding:0 4px" ${i===0?'disabled':''}>↑</button>
+      <button onclick="movePair(${i},1)" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px;padding:0 4px" ${i===pairs.length-1?'disabled':''}>↓</button>
+      <button onclick="removePair(${i})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;padding:0 4px">×</button>
+    </div>
+  `).join('');
+  updateSymbolSelect();
+}
+
+function updateSymbolSelect() {
+  const sel = document.getElementById('trade-symbol');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">選択...</option>' + 
+    pairs.map(p => `<option value="${p}" ${p===current?'selected':''}>${p}</option>`).join('');
+}
+
+function addPair() {
+  const input = document.getElementById('new-pair-input');
+  const val = input.value.trim().toUpperCase();
+  if (!val) return;
+  if (pairs.includes(val)) { toast('⚠️ すでに追加されています'); return; }
+  pairs.push(val);
+  input.value = '';
+  savePairs();
+  renderPairList();
+  toast(`✅ ${val} を追加しました`);
+}
+
+function removePair(i) {
+  pairs.splice(i, 1);
+  savePairs();
+  renderPairList();
+}
+
+function movePair(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= pairs.length) return;
+  [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
+  savePairs();
+  renderPairList();
+}
+
+async function savePairs() {
+  await store.set('habit-pairs', JSON.stringify(pairs));
+}
+
+async function loadPairs() {
+  try {
+    const p = await store.get('habit-pairs');
+    if (p) pairs = JSON.parse(p.value);
+  } catch(e) {}
+  renderPairList();
+  updateSymbolSelect();
+}
+
 // ── Settings Modal ──
 function openSettings() {
   document.getElementById('cfg-sheet-id').value = cfg.sheetId;
   document.getElementById('cfg-sheet-name').value = cfg.sheetName;
   document.getElementById('cfg-gas-url').value = cfg.gasUrl;
+  renderPairList();
   document.getElementById('settingsModal').classList.add('open');
 }
 function closeSettings() {
@@ -1138,7 +1216,7 @@ async function loadStorage() {
       updateSheetsStatus();
     }
   } catch(e) {}
-  // 今日の進捗を復元
+  await loadPairs();
   await restoreTodayProgress();
 }
 
@@ -1594,6 +1672,7 @@ function clearToday() {
   document.getElementById('trade-symbol').value = '';
   document.getElementById('trade-dir').value = '';
   document.getElementById('trade-note').value = '';
+  updateSymbolSelect();
   document.getElementById('data-weight').style.display = 'none';
   document.getElementById('data-gym').style.display = 'none';
   document.getElementById('scoreNum').textContent = '0';
