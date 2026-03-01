@@ -675,6 +675,70 @@
     transition: background 0.15s;
   }
   .sheets-indicator:hover { background: var(--surface2); }
+
+  /* Bonus tasks */
+  #bonus-score-label {
+    transition: all 0.3s;
+    animation: star-glow 1.5s ease-in-out infinite;
+    font-size: 22px;
+    letter-spacing: 4px;
+    display: inline-block;
+  }
+
+  @keyframes star-glow {
+    0%   { filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 6px #ffd166) drop-shadow(0 0 12px #ffd166); opacity: 1; }
+    25%  { filter: drop-shadow(0 0 4px #fff) drop-shadow(0 0 12px #ffaa00) drop-shadow(0 0 24px #ff8800); opacity: 0.9; }
+    50%  { filter: drop-shadow(0 0 6px #fff) drop-shadow(0 0 18px #ffd166) drop-shadow(0 0 36px #ffe066) drop-shadow(0 0 48px #ffd166); opacity: 1; }
+    75%  { filter: drop-shadow(0 0 4px #fff) drop-shadow(0 0 12px #ffaa00) drop-shadow(0 0 24px #ff8800); opacity: 0.9; }
+    100% { filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 6px #ffd166) drop-shadow(0 0 12px #ffd166); opacity: 1; }
+  }
+
+  @keyframes star-pop {
+    0%   { transform: scale(1) rotate(0deg); }
+    30%  { transform: scale(1.8) rotate(20deg); }
+    60%  { transform: scale(0.85) rotate(-10deg); }
+    80%  { transform: scale(1.15) rotate(5deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+  .star-pop { animation: star-pop 0.5s ease !important; }
+  .bonus-task-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+  }
+  .bonus-task-item:hover { border-color: rgba(255,209,102,0.4); }
+  .bonus-task-item.done {
+    border-color: rgba(255,209,102,0.5);
+    background: rgba(255,209,102,0.05);
+  }
+  .bonus-checkbox {
+    width: 22px; height: 22px;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s;
+    font-size: 13px;
+  }
+  .bonus-task-item.done .bonus-checkbox {
+    background: var(--warn);
+    border-color: var(--warn);
+    color: #000;
+  }
+  .bonus-task-name {
+    font-size: 14px;
+    flex: 1;
+  }
+  .bonus-task-item.done .bonus-task-name {
+    color: var(--warn);
+  }
 </style>
 
 </head>
@@ -741,6 +805,11 @@
           onkeydown="if(event.key==='Enter')addPair()">
         <button class="btn primary" onclick="addPair()">＋ 追加</button>
       </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">⭐ ボーナスタスク（3つ固定）</div>
+      <div id="bonus-settings-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
     </div>
 
     <div class="help-note">
@@ -922,6 +991,15 @@
     </div>
   </div>
 
+  <!-- Bonus Tasks -->
+  <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+    <span>⭐ ボーナスタスク</span>
+    <span id="bonus-score-label" style="font-size:18px;letter-spacing:2px">　</span>
+  </div>
+  <div class="habit-card" style="margin-bottom:40px">
+    <div id="bonus-task-list" style="display:flex;flex-direction:column;gap:10px"></div>
+  </div>
+
   <!-- History -->
   <div class="history-section">
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
@@ -1002,6 +1080,112 @@ function toggleApiKeyVisibility() {
 // 通貨ペアリスト
 let pairs = ['USD/JPY', 'EUR/JPY', 'GBP/JPY', 'XAU/USD'];
 
+// ボーナスタスク（3固定）
+let bonusTasks = [
+  { name: '首のエクササイズ', done: false, enabled: true },
+  { name: 'ストレッチ', done: false, enabled: false },
+  { name: '水を飲む', done: false, enabled: false }
+];
+
+function renderBonusTasks() {
+  const list = document.getElementById('bonus-task-list');
+  if (!list) return;
+  const enabledTasks = bonusTasks.filter(t => t.enabled);
+  if (enabledTasks.length === 0) {
+    list.innerHTML = '<div style="color:var(--text2);font-size:13px;text-align:center;padding:16px">⚙️ 設定からタスクを有効にしてください</div>';
+    updateBonusScore();
+    return;
+  }
+  list.innerHTML = bonusTasks.map((t, i) => {
+    if (!t.enabled) return '';
+    return `
+    <div class="bonus-task-item ${t.done ? 'done' : ''}" onclick="toggleBonusTask(${i})">
+      <div class="bonus-checkbox">${t.done ? '★' : ''}</div>
+      <span class="bonus-task-name">${t.name}</span>
+    </div>`;
+  }).join('');
+  updateBonusScore();
+}
+
+function renderBonusSettings() {
+  const list = document.getElementById('bonus-settings-list');
+  if (!list) return;
+  list.innerHTML = bonusTasks.map((t, i) => `
+    <div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid ${t.enabled ? 'var(--warn)' : 'var(--border)'};border-radius:8px;padding:8px 12px">
+      <input type="text" value="${t.name}"
+        onchange="renameBonusTask(${i}, this.value)"
+        style="flex:1;background:transparent;border:none;color:var(--text);font-size:13px;outline:none">
+      <button onclick="toggleBonusEnabled(${i})"
+        style="background:${t.enabled ? 'var(--warn)' : 'var(--surface)'};border:1px solid ${t.enabled ? 'var(--warn)' : 'var(--border)'};color:${t.enabled ? '#000' : 'var(--text2)'};border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;white-space:nowrap">
+        ${t.enabled ? '✓ 表示中' : '非表示'}
+      </button>
+    </div>
+  `).join('');
+}
+
+function toggleBonusEnabled(i) {
+  bonusTasks[i].enabled = !bonusTasks[i].enabled;
+  saveBonusTasks();
+  renderBonusSettings();
+  renderBonusTasks();
+}
+
+function renameBonusTask(i, name) {
+  bonusTasks[i].name = name.trim();
+  saveBonusTasks();
+  renderBonusTasks();
+}
+
+async function toggleBonusTask(i) {
+  bonusTasks[i].done = !bonusTasks[i].done;
+  renderBonusTasks();
+  // 星アニメーション
+  const label = document.getElementById('bonus-score-label');
+  if (label && bonusTasks[i].done) {
+    label.classList.remove('star-pop');
+    void label.offsetWidth;
+    label.classList.add('star-pop');
+    setTimeout(() => label.classList.remove('star-pop'), 300);
+  }
+  await saveTodayProgress();
+}
+
+function updateBonusScore() {
+  const enabled = bonusTasks.filter(t => t.enabled);
+  const done = bonusTasks.filter(t => t.enabled && t.done).length;
+  const total = enabled.length;
+  const label = document.getElementById('bonus-score-label');
+  if (!label) return;
+  if (total === 0) { label.textContent = ''; return; }
+  // 完了した星 ★、未完了の星 ☆
+  label.textContent = '★'.repeat(done) + '☆'.repeat(total - done);
+}
+
+async function saveBonusTasks() {
+  // 名前・表示設定を保存
+  await store.set('habit-bonus-tasks', JSON.stringify(bonusTasks.map(t => ({ name: t.name, enabled: t.enabled }))));
+}
+
+async function loadBonusTasks() {
+  try {
+    const b = await store.get('habit-bonus-tasks');
+    if (b) {
+      const saved = JSON.parse(b.value);
+      saved.forEach((item, i) => {
+        if (!bonusTasks[i]) return;
+        // 旧形式（文字列）と新形式（オブジェクト）両対応
+        if (typeof item === 'string') {
+          bonusTasks[i].name = item;
+        } else {
+          bonusTasks[i].name = item.name ?? bonusTasks[i].name;
+          bonusTasks[i].enabled = item.enabled ?? bonusTasks[i].enabled;
+        }
+      });
+    }
+  } catch(e) {}
+  renderBonusTasks();
+}
+
 function renderPairList() {
   const list = document.getElementById('pair-list');
   if (!list) return;
@@ -1070,6 +1254,7 @@ function openSettings() {
   document.getElementById('cfg-gas-url').value = cfg.gasUrl;
   document.getElementById('cfg-api-key').value = cfg.apiKey;
   renderPairList();
+  renderBonusSettings();
   document.getElementById('settingsModal').classList.add('open');
 }
 function closeSettings() {
@@ -1178,7 +1363,7 @@ async function syncToSheets(row) {
         row.date, row.weight, row.weightTime,
         row.gymType, row.gymDuration, row.gymCal,
         row.tradeSymbol, row.tradeDir, row.tradeTime,
-        row.tradeNote, row.score + '/3'
+        row.tradeNote, row.score + '/3', row.bonusScore + '/3'
       ])
     });
     await fetch(cfg.gasUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
@@ -1213,8 +1398,8 @@ function doGet(e) {
     if (!sheet) {
       sheet = ss.insertSheet(sheetName);
       sheet.appendRow(['日付','体重','体重時刻','運動種類','運動時間','カロリー',
-        '銘柄','方向','確定時刻','メモ','スコア']);
-      sheet.getRange(1,1,1,11).setFontWeight('bold')
+        '銘柄','方向','確定時刻','メモ','スコア','ボーナス']);
+      sheet.getRange(1,1,1,12).setFontWeight('bold')
         .setBackground('#1a1a2e').setFontColor('#ffffff');
     }
 
@@ -1289,6 +1474,7 @@ async function loadStorage() {
     }
   } catch(e) {}
   await loadPairs();
+  await loadBonusTasks();
   await restoreTodayProgress();
 }
 
@@ -1299,7 +1485,8 @@ async function saveTodayProgress() {
     date: today,
     weight: { completed: state.weight.completed, value: state.weight.value, time: state.weight.time },
     gym: { completed: state.gym.completed, type: state.gym.type, duration: state.gym.duration, cal: state.gym.cal },
-    trade: { completed: state.trade.completed, symbol: state.trade.symbol, dir: state.trade.dir, time: state.trade.time, note: state.trade.note }
+    trade: { completed: state.trade.completed, symbol: state.trade.symbol, dir: state.trade.dir, time: state.trade.time, note: state.trade.note },
+    bonusDone: bonusTasks.map(t => t.done)
   };
   try {
     await store.set('habit-today', JSON.stringify(progress));
@@ -1345,6 +1532,14 @@ async function restoreTodayProgress() {
       document.getElementById('confirmed-time').textContent = state.trade.time || '--';
       document.getElementById('trade-note-edit').value = state.trade.note || '';
       document.getElementById('card-trade').classList.add('completed');
+    }
+
+    // ボーナスタスクを復元
+    if (progress.bonusDone) {
+      progress.bonusDone.forEach((done, i) => {
+        if (bonusTasks[i]) bonusTasks[i].done = done;
+      });
+      renderBonusTasks();
     }
 
     updateScore();
@@ -1689,7 +1884,8 @@ async function saveToday() {
     tradeDir: state.trade.dir || '--',
     tradeTime: state.trade.time || '--',
     tradeNote: state.trade.note || '',
-    score: [state.weight.completed, state.gym.completed, state.trade.completed].filter(Boolean).length
+    score: [state.weight.completed, state.gym.completed, state.trade.completed].filter(Boolean).length,
+    bonusScore: bonusTasks.filter(t => t.done).length
   };
 
   state.history = state.history.filter(r => r.date !== row.date);
@@ -1774,6 +1970,9 @@ function clearToday() {
   document.getElementById('scoreNum').textContent = '0';
   document.getElementById('scoreCircle').style.strokeDashoffset = '339.3';
   document.getElementById('scoreTitle').textContent = '今日の習慣を記録しよう';
+  // ボーナスタスクリセット
+  bonusTasks.forEach(t => t.done = false);
+  renderBonusTasks();
   // 進捗ストレージもクリア
   try { store.delete('habit-today'); } catch(e) {}
   toast('🔄 リセットしました');
