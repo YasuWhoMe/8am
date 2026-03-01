@@ -1122,6 +1122,67 @@ async function loadStorage() {
       updateSheetsStatus();
     }
   } catch(e) {}
+  // 今日の進捗を復元
+  await restoreTodayProgress();
+}
+
+// 今日の進捗をstorageに随時保存
+async function saveTodayProgress() {
+  const today = new Date().toISOString().split('T')[0];
+  const progress = {
+    date: today,
+    weight: { completed: state.weight.completed, value: state.weight.value, time: state.weight.time },
+    gym: { completed: state.gym.completed, type: state.gym.type, duration: state.gym.duration, cal: state.gym.cal },
+    trade: { completed: state.trade.completed, symbol: state.trade.symbol, dir: state.trade.dir, time: state.trade.time, note: state.trade.note }
+  };
+  try {
+    await window.storage.set('habit-today', JSON.stringify(progress));
+  } catch(e) {}
+}
+
+// リロード時に今日の進捗を復元
+async function restoreTodayProgress() {
+  try {
+    const t = await window.storage.get('habit-today');
+    if (!t) return;
+    const progress = JSON.parse(t.value);
+    const today = new Date().toISOString().split('T')[0];
+    // 日付が違ったら復元しない
+    if (progress.date !== today) return;
+
+    // 体重を復元
+    if (progress.weight.completed) {
+      state.weight = { ...state.weight, ...progress.weight };
+      document.getElementById('val-weight').textContent = state.weight.value || '--';
+      document.getElementById('val-weight-time').textContent = state.weight.time || '--';
+      document.getElementById('data-weight').style.display = 'block';
+      document.getElementById('card-weight').classList.add('completed');
+    }
+
+    // 運動を復元
+    if (progress.gym.completed) {
+      state.gym = { ...state.gym, ...progress.gym };
+      document.getElementById('val-gym-type').textContent = state.gym.type || '--';
+      document.getElementById('val-gym-duration').textContent = state.gym.duration || '--';
+      document.getElementById('val-gym-cal').textContent = state.gym.cal || '--';
+      document.getElementById('data-gym').style.display = 'block';
+      document.getElementById('card-gym').classList.add('completed');
+    }
+
+    // トレードを復元
+    if (progress.trade.completed) {
+      state.trade = { ...state.trade, ...progress.trade };
+      document.getElementById('trade-input-area').style.display = 'none';
+      document.getElementById('trade-confirmed-area').style.display = 'block';
+      document.getElementById('confirmed-symbol').textContent = state.trade.symbol || '--';
+      document.getElementById('confirmed-dir').textContent = state.trade.dir || '--';
+      document.getElementById('confirmed-time').textContent = state.trade.time || '--';
+      document.getElementById('trade-note-edit').value = state.trade.note || '';
+      document.getElementById('card-trade').classList.add('completed');
+    }
+
+    updateScore();
+  } catch(e) {}
 }
 
 // Init
@@ -1333,6 +1394,7 @@ function completeHabit(habit) {
 
   card.classList.add('completed');
   updateScore();
+  saveTodayProgress();
   toast(`✅ ${habit === 'weight' ? '体重測定' : habit === 'gym' ? '運動' : 'トレードシナリオ'}を完了！`);
 }
 
@@ -1346,11 +1408,13 @@ function resetTrade() {
   document.getElementById('trade-note').value = '';
   document.getElementById('card-trade').classList.remove('completed');
   updateScore();
+  saveTodayProgress();
   toast('↩ シナリオをリセットしました');
 }
 
 function updateMemo() {
   state.trade.note = document.getElementById('trade-note-edit').value;
+  saveTodayProgress();
   toast('📝 メモを更新しました。「保存 & Sheets同期」で反映されます');
 }
 
@@ -1534,6 +1598,8 @@ function clearToday() {
   document.getElementById('scoreNum').textContent = '0';
   document.getElementById('scoreCircle').style.strokeDashoffset = '339.3';
   document.getElementById('scoreTitle').textContent = '今日の習慣を記録しよう';
+  // 進捗ストレージもクリア
+  try { window.storage.delete('habit-today'); } catch(e) {}
   toast('🔄 リセットしました');
 }
 
