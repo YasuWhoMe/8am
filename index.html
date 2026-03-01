@@ -828,47 +828,60 @@
         </div>
       </div>
 
-      <div class="trade-inputs">
-        <div class="form-group">
-          <label>銘柄 / ペア</label>
-          <input type="text" id="trade-symbol" placeholder="例: USD/JPY, 7203">
+      <!-- 確定前 -->
+      <div id="trade-input-area">
+        <div class="trade-inputs">
+          <div class="form-group">
+            <label>銘柄 / ペア</label>
+            <input type="text" id="trade-symbol" placeholder="例: USD/JPY, 7203">
+          </div>
+          <div class="form-group">
+            <label>方向</label>
+            <select id="trade-dir">
+              <option value="">選択...</option>
+              <option value="買い">買い（ロング）</option>
+              <option value="売り">売り（ショート）</option>
+              <option value="様子見">様子見</option>
+            </select>
+          </div>
         </div>
-        <div class="form-group">
-          <label>方向</label>
-          <select id="trade-dir">
-            <option value="">選択...</option>
-            <option value="買い">買い（ロング）</option>
-            <option value="売り">売り（ショート）</option>
-            <option value="様子見">様子見</option>
-          </select>
+        <div class="trade-inputs full">
+          <div class="form-group">
+            <label>メモ・根拠（確定後も編集可）</label>
+            <textarea id="trade-note" placeholder="なぜこのシナリオにしたか記録…"></textarea>
+          </div>
         </div>
-        <div class="form-group">
-          <label>エントリー価格</label>
-          <input type="text" id="trade-entry" placeholder="例: 150.50">
-        </div>
-        <div class="form-group">
-          <label>損切りライン</label>
-          <input type="text" id="trade-sl" placeholder="例: 150.00">
-        </div>
-        <div class="form-group">
-          <label>利確ライン</label>
-          <input type="text" id="trade-tp" placeholder="例: 151.50">
-        </div>
-        <div class="form-group">
-          <label>記録時刻</label>
-          <input type="time" id="trade-time">
-        </div>
-      </div>
-      <div class="trade-inputs full">
-        <div class="form-group">
-          <label>シナリオ根拠・メモ</label>
-          <textarea id="trade-note" placeholder="なぜこのシナリオにしたか記録…"></textarea>
+        <div class="btn-row">
+          <button class="btn primary" onclick="completeHabit('trade')">✓ シナリオ確定</button>
         </div>
       </div>
 
-      <div class="btn-row">
-        <button class="btn" onclick="aiEvaluateTrade()">🤖 AI評価</button>
-        <button class="btn primary" onclick="completeHabit('trade')">✓ シナリオ確定</button>
+      <!-- 確定後に表示 -->
+      <div id="trade-confirmed-area" style="display:none">
+        <div class="habit-data">
+          <div class="habit-data-row">
+            <span class="key">銘柄</span>
+            <span class="val accent" id="confirmed-symbol">--</span>
+          </div>
+          <div class="habit-data-row">
+            <span class="key">方向</span>
+            <span class="val" id="confirmed-dir">--</span>
+          </div>
+          <div class="habit-data-row">
+            <span class="key">確定時刻</span>
+            <span class="val accent" id="confirmed-time">--</span>
+          </div>
+        </div>
+        <div class="trade-inputs full" style="margin-top:12px">
+          <div class="form-group">
+            <label>メモ・根拠（編集可）</label>
+            <textarea id="trade-note-edit" placeholder="振り返りメモを追記…"></textarea>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn primary" onclick="updateMemo()">📝 メモ更新</button>
+          <button class="btn" onclick="resetTrade()">↩ やり直す</button>
+        </div>
       </div>
 
       <div class="ai-result" id="result-trade" style="margin-top:14px">
@@ -1028,11 +1041,9 @@ async function syncToSheets(row) {
       sheetName: cfg.sheetName,
       data: JSON.stringify([
         row.date, row.weight, row.weightTime,
-        row.gymType, row.gymDuration, row.gymCal || '--',
-        row.tradeSymbol, row.tradeDir, row.tradeEntry || '--',
-        row.tradeSL || '--', row.tradeTP || '--',
-        row.tradeTime, row.tradeNote || '',
-        row.score + '/3'
+        row.gymType, row.gymDuration, row.gymCal,
+        row.tradeSymbol, row.tradeDir, row.tradeTime,
+        row.tradeNote, row.score + '/3'
       ])
     });
     await fetch(cfg.gasUrl + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
@@ -1068,8 +1079,8 @@ function doGet(e) {
     if (!sheet) {
       sheet = ss.insertSheet(sheetName);
       sheet.appendRow(['日付','体重','体重時刻','運動種類','運動時間','カロリー',
-        '銘柄','方向','エントリー','損切り','利確','記録時刻','メモ','スコア']);
-      sheet.getRange(1,1,1,14).setFontWeight('bold')
+        '銘柄','方向','確定時刻','メモ','スコア']);
+      sheet.getRange(1,1,1,11).setFontWeight('bold')
         .setBackground('#1a1a2e').setFontColor('#ffffff');
     }
 
@@ -1286,22 +1297,36 @@ function completeHabit(habit) {
   const card = document.getElementById(`card-${habit}`);
   
   if (habit === 'trade') {
-    const symbol = document.getElementById('trade-symbol').value;
+    const symbol = document.getElementById('trade-symbol').value.trim();
     const dir = document.getElementById('trade-dir').value;
     if (!symbol || !dir) {
       toast('⚠️ 銘柄と方向を入力してください');
       return;
     }
+    // 確定ボタンを押した瞬間のタイムスタンプ
+    const now = new Date();
+    const timestamp = now.toTimeString().slice(0, 5);
+
     state.trade = {
       completed: true,
       symbol,
       dir,
-      entry: document.getElementById('trade-entry').value,
-      sl: document.getElementById('trade-sl').value,
-      tp: document.getElementById('trade-tp').value,
-      note: document.getElementById('trade-note').value,
-      time: document.getElementById('trade-time').value
+      time: timestamp,
+      note: document.getElementById('trade-note').value
     };
+
+    // UIを確定後表示に切り替え
+    document.getElementById('trade-input-area').style.display = 'none';
+    document.getElementById('trade-confirmed-area').style.display = 'block';
+    document.getElementById('confirmed-symbol').textContent = symbol;
+    document.getElementById('confirmed-dir').textContent = dir;
+    document.getElementById('confirmed-time').textContent = timestamp;
+    document.getElementById('trade-note-edit').value = state.trade.note;
+
+    // 8時以降かチェックして色を変える
+    const isLate = now.getHours() >= 8;
+    document.getElementById('confirmed-time').style.color = isLate ? 'var(--danger)' : 'var(--accent)';
+
   } else {
     state[habit].completed = true;
   }
@@ -1309,6 +1334,24 @@ function completeHabit(habit) {
   card.classList.add('completed');
   updateScore();
   toast(`✅ ${habit === 'weight' ? '体重測定' : habit === 'gym' ? '運動' : 'トレードシナリオ'}を完了！`);
+}
+
+function resetTrade() {
+  if (!confirm('シナリオをやり直しますか？')) return;
+  state.trade = { completed: false, symbol: null, dir: null, time: null, note: null };
+  document.getElementById('trade-input-area').style.display = 'block';
+  document.getElementById('trade-confirmed-area').style.display = 'none';
+  document.getElementById('trade-symbol').value = '';
+  document.getElementById('trade-dir').value = '';
+  document.getElementById('trade-note').value = '';
+  document.getElementById('card-trade').classList.remove('completed');
+  updateScore();
+  toast('↩ シナリオをリセットしました');
+}
+
+function updateMemo() {
+  state.trade.note = document.getElementById('trade-note-edit').value;
+  toast('📝 メモを更新しました。「保存 & Sheets同期」で反映されます');
 }
 
 // AI trade evaluation
@@ -1405,15 +1448,11 @@ async function saveToday() {
     gymCal: state.gym.cal || '--',
     tradeSymbol: state.trade.symbol || '--',
     tradeDir: state.trade.dir || '--',
-    tradeEntry: state.trade.entry || '--',
-    tradeSL: state.trade.sl || '--',
-    tradeTP: state.trade.tp || '--',
     tradeTime: state.trade.time || '--',
     tradeNote: state.trade.note || '',
     score: [state.weight.completed, state.gym.completed, state.trade.completed].filter(Boolean).length
   };
 
-  // Remove duplicate date
   state.history = state.history.filter(r => r.date !== row.date);
   state.history.unshift(row);
 
@@ -1421,13 +1460,12 @@ async function saveToday() {
     await window.storage.set('habit-history', JSON.stringify(state.history));
   } catch(e) {}
 
-  // Sync to Google Sheets
   if (cfg.gasUrl) {
     toast('📡 Google Sheetsに同期中...');
     const ok = await syncToSheets(row);
     toast(ok ? '✅ Sheetsに同期完了！' : '⚠️ 保存済み（Sheets同期失敗）');
   } else {
-    toast('💾 保存しました！（Sheets未設定）');
+    toast('💾 保存しました！');
   }
 
   renderHistory();
@@ -1479,12 +1517,18 @@ function clearToday() {
   if (!confirm('今日の記録をリセットしますか？')) return;
   ['weight','gym','trade'].forEach(h => {
     state[h] = h === 'trade' 
-      ? { completed: false, symbol: null, dir: null, entry: null, sl: null, tp: null, note: null, time: null }
+      ? { completed: false, symbol: null, dir: null, time: null, note: null }
       : { completed: false, value: null, time: null, imageData: null };
     document.getElementById(`card-${h}`).classList.remove('completed');
     const result = document.getElementById(`result-${h}`);
     if (result) result.classList.remove('visible');
   });
+  // トレードUIリセット
+  document.getElementById('trade-input-area').style.display = 'block';
+  document.getElementById('trade-confirmed-area').style.display = 'none';
+  document.getElementById('trade-symbol').value = '';
+  document.getElementById('trade-dir').value = '';
+  document.getElementById('trade-note').value = '';
   document.getElementById('data-weight').style.display = 'none';
   document.getElementById('data-gym').style.display = 'none';
   document.getElementById('scoreNum').textContent = '0';
