@@ -696,7 +696,21 @@
     <div class="modal-sub">Google Sheets連携を設定すると、「今日を保存」のたびに自動でシートに書き込まれます。</div>
 
     <div class="settings-section">
-      <div class="settings-section-label">Google Sheets 連携</div>
+      <div class="settings-section-label">🤖 Claude API キー</div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>APIキー（sk-ant-...）</label>
+        <div style="display:flex;gap:8px">
+          <input type="password" id="cfg-api-key" placeholder="sk-ant-api03-..." style="flex:1">
+          <button class="btn" onclick="toggleApiKeyVisibility()">👁</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-top:4px">
+        <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent)">console.anthropic.com</a> で取得。localStorageに保存されGitHubには載りません。
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-label">🗄 Google Sheets 連携</div>
       <div class="form-group" style="margin-bottom:10px">
         <label>スプレッドシート ID</label>
         <input type="text" id="cfg-sheet-id" placeholder="URLの /d/ と /edit の間のID">
@@ -767,7 +781,7 @@
 
     <div class="habit-card" id="card-weight">
       <div class="habit-header">
-        <div class="habit-icon weight">⚖️</div>
+        <div class="habit-icon weight">🔢</div>
         <div class="habit-meta">
           <h3>体重測定</h3>
           <p>iPhoneヘルスケアのスクショから自動で記録</p>
@@ -801,7 +815,7 @@
     <!-- Habit 2: Exercise -->
     <div class="habit-card" id="card-gym">
       <div class="habit-header">
-        <div class="habit-icon gym">🏋️</div>
+        <div class="habit-icon gym">💪</div>
         <div class="habit-meta">
           <h3>運動（ジム / ストレッチ）</h3>
           <p>運動アプリのスクショから運動量・時間を記録</p>
@@ -978,7 +992,12 @@ const store = {
 };
 
 // Config (Google Sheets)
-const cfg = { gasUrl: '', sheetId: '', sheetName: '習慣ログ' };
+const cfg = { gasUrl: '', sheetId: '', sheetName: '習慣ログ', apiKey: '' };
+
+function toggleApiKeyVisibility() {
+  const input = document.getElementById('cfg-api-key');
+  input.type = input.type === 'password' ? 'text' : 'password';
+}
 
 // 通貨ペアリスト
 let pairs = ['USD/JPY', 'EUR/JPY', 'GBP/JPY', 'XAU/USD'];
@@ -1049,6 +1068,7 @@ function openSettings() {
   document.getElementById('cfg-sheet-id').value = cfg.sheetId;
   document.getElementById('cfg-sheet-name').value = cfg.sheetName;
   document.getElementById('cfg-gas-url').value = cfg.gasUrl;
+  document.getElementById('cfg-api-key').value = cfg.apiKey;
   renderPairList();
   document.getElementById('settingsModal').classList.add('open');
 }
@@ -1063,10 +1083,12 @@ async function saveSettings() {
   cfg.sheetId = document.getElementById('cfg-sheet-id').value.trim();
   cfg.sheetName = document.getElementById('cfg-sheet-name').value.trim() || '習慣ログ';
   cfg.gasUrl = document.getElementById('cfg-gas-url').value.trim();
+  cfg.apiKey = document.getElementById('cfg-api-key').value.trim();
   try {
     await store.set('habit-cfg', JSON.stringify(cfg));
   } catch(e) {}
   updateSheetsStatus();
+  updateApiKeyStatus();
   toast('✅ 設定を保存しました');
   closeSettings();
 }
@@ -1118,6 +1140,21 @@ function setSheetsStatus(type, msg) {
   status.innerHTML = `<span class="status-dot${type === 'ok' ? ' ok' : type === 'err' ? ' err' : ''}"></span>${msg}`;
 }
 
+function updateApiKeyStatus() {
+  const bottomText = document.getElementById('bottomStatusText');
+  const bottomDot = document.getElementById('bottomStatusDot');
+  if (cfg.apiKey && cfg.gasUrl) {
+    bottomDot.className = 'status-dot ok';
+    bottomText.textContent = 'API・Sheets連携中';
+  } else if (cfg.gasUrl) {
+    bottomDot.className = 'status-dot ok';
+    bottomText.textContent = 'Sheets連携中';
+  } else {
+    bottomDot.className = 'status-dot';
+    bottomText.textContent = 'Sheets未設定';
+  }
+}
+
 function updateSheetsStatus() {
   const bottomDot = document.getElementById('bottomStatusDot');
   const bottomText = document.getElementById('bottomStatusText');
@@ -1156,7 +1193,6 @@ function copyGASCode() {
 // デプロイ: ウェブアプリとして公開 → 実行ユーザー:自分 / アクセス権：全員
 
 function doGet(e) {
-  // CORSヘッダーを付けてレスポンスを返すヘルパー
   function respond(obj) {
     return ContentService
       .createTextOutput(JSON.stringify(obj))
@@ -1183,9 +1219,40 @@ function doGet(e) {
     }
 
     const data = JSON.parse(e.parameter.data);
-    sheet.appendRow(data);
+    const date = String(data[0]); // A列が日付（文字列として扱う）
 
-    return respond({status: 'ok', appended: data.length});
+    // 同じ日付の行を探して上書き、なければ追加
+    const lastRow = sheet.getLastRow();
+    let found = false;
+
+    if (lastRow >= 2) {
+      const dateCol = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (let i = 0; i < dateCol.length; i++) {
+        const cellVal = dateCol[i][0];
+        // Date型・文字列型・数値型すべてに対応
+        let cellStr;
+        if (cellVal instanceof Date) {
+          cellStr = Utilities.formatDate(cellVal, 'Asia/Tokyo', 'yyyy-MM-dd');
+        } else {
+          cellStr = String(cellVal).trim();
+        }
+        if (cellStr === date) {
+          sheet.getRange(i + 2, 1, 1, data.length).setValues([data]);
+          found = true;
+          break;
+        }
+      }
+    }
+
+    if (!found) {
+      // 日付列をプレーンテキストとして追加（Sheetsの自動変換を防ぐ）
+      sheet.appendRow(data);
+      // A列を文字列として再設定
+      const newRow = sheet.getLastRow();
+      sheet.getRange(newRow, 1).setNumberFormat('@STRING@').setValue(date);
+    }
+
+    return respond({status: 'ok', upserted: found ? 'updated' : 'inserted'});
   }
 
   return respond({status: 'ok', message: 'unknown action'});
@@ -1218,6 +1285,7 @@ async function loadStorage() {
       const saved = JSON.parse(c.value);
       Object.assign(cfg, saved);
       updateSheetsStatus();
+      updateApiKeyStatus();
     }
   } catch(e) {}
   await loadPairs();
@@ -1365,10 +1433,20 @@ JSON形式で: {"type": "種類", "duration": "xx分", "calories": "xxx kcal ま
 その後、簡単なコメントを1文で。`
   };
 
+  if (!cfg.apiKey) {
+    textEl.innerHTML = '⚠️ APIキーが設定されていません。⚙️設定から入力してください。';
+    return;
+  }
+
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': cfg.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
@@ -1537,10 +1615,20 @@ async function aiEvaluateTrade() {
 2. 改善アドバイス1点
 最後に 総合評価: A/B/C/D のいずれかを付けてください。`;
 
+  if (!cfg.apiKey) {
+    textEl.innerHTML = '⚠️ APIキーが設定されていません。⚙️設定から入力してください。';
+    return;
+  }
+
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': cfg.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
