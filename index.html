@@ -1486,8 +1486,12 @@ JSON形式で: {"type": "種類", "duration": "xx分", "calories": "xxx kcal ま
       } catch(e) {}
     }
     
-    // Remove JSON from display text
-    const displayText = text.replace(/\{[\s\S]*?\}/, '').trim();
+    // Remove JSON and markdown code blocks from display text
+    const displayText = text
+      .replace(/```json[\s\S]*?```/g, '')
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/\{[\s\S]*?\}/g, '')
+      .trim();
     textEl.innerHTML = displayText || text;
     toast('✅ AI解析完了！');
 
