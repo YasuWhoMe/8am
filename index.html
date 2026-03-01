@@ -759,9 +759,9 @@
         </div>
       </div>
 
-      <div class="upload-zone" id="zone-weight">
+      <div class="upload-zone" id="zone-weight" tabindex="0">
         <input type="file" accept="image/*" onchange="handleImage('weight', this)">
-        <div class="upload-label">📷 スクショをアップロード or ドラッグ<br><strong>AI が体重・時刻を自動抽出</strong></div>
+        <div class="upload-label">📷 タップして選択 / ドラッグ<br><strong>📋 長押し→ペーストでも追加可</strong></div>
       </div>
 
       <img class="img-preview" id="preview-weight">
@@ -776,6 +776,7 @@
       </div>
 
       <div class="btn-row">
+        <button class="btn" onclick="pasteFromClipboard('weight')">📋 ペースト</button>
         <button class="btn" onclick="analyzeImage('weight')">🤖 AI解析</button>
         <button class="btn" onclick="manualInput('weight')">✏️ 手入力</button>
         <button class="btn primary" onclick="completeHabit('weight')">完了</button>
@@ -792,9 +793,9 @@
         </div>
       </div>
 
-      <div class="upload-zone" id="zone-gym">
+      <div class="upload-zone" id="zone-gym" tabindex="0">
         <input type="file" accept="image/*" onchange="handleImage('gym', this)">
-        <div class="upload-label">📷 スクショをアップロード or ドラッグ<br><strong>AI が運動データを自動抽出</strong></div>
+        <div class="upload-label">📷 タップして選択 / ドラッグ<br><strong>📋 長押し→ペーストでも追加可</strong></div>
       </div>
 
       <img class="img-preview" id="preview-gym">
@@ -810,6 +811,7 @@
       </div>
 
       <div class="btn-row">
+        <button class="btn" onclick="pasteFromClipboard('gym')">📋 ペースト</button>
         <button class="btn" onclick="analyzeImage('gym')">🤖 AI解析</button>
         <button class="btn" onclick="manualInput('gym')">✏️ 手入力</button>
         <button class="btn primary" onclick="completeHabit('gym')">完了</button>
@@ -1533,6 +1535,93 @@ document.querySelectorAll('.upload-zone').forEach(zone => {
     }
   });
 });
+
+// ── Paste support (iPhone Safari: 長押し→ペースト / PC: Ctrl+V) ──
+// activeZone: どのゾーンにフォーカスがあるか追跡
+let activeZone = null;
+
+document.querySelectorAll('.upload-zone').forEach(zone => {
+  zone.addEventListener('focus', () => { activeZone = zone.id.replace('zone-',''); });
+  zone.addEventListener('click', () => { activeZone = zone.id.replace('zone-',''); });
+  zone.addEventListener('touchstart', () => { activeZone = zone.id.replace('zone-',''); }, {passive:true});
+});
+
+// グローバルペーストイベント（どこでペーストしても拾う）
+document.addEventListener('paste', handlePaste);
+
+// ゾーン上でのペーストも個別に拾う（Safari対応）
+document.querySelectorAll('.upload-zone').forEach(zone => {
+  zone.addEventListener('paste', handlePaste);
+});
+
+function handlePaste(e) {
+  const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+  if (!items) return;
+
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      const file = item.getAsFile();
+      if (!file) continue;
+
+      // どのゾーンか判定（フォーカス中 or デフォルトweight）
+      const habit = activeZone || 'weight';
+
+      const reader = new FileReader();
+      reader.onload = ev => {
+        imageCache[habit] = ev.target.result;
+        const preview = document.getElementById(`preview-${habit}`);
+        preview.src = ev.target.result;
+        preview.classList.add('visible');
+        toast(`📋 ${habit === 'weight' ? '体重' : '運動'}スクショをペーストしました！「AI解析」を押してください`);
+        // ゾーンをハイライト
+        const zone = document.getElementById(`zone-${habit}`);
+        if (zone) {
+          zone.style.borderColor = 'var(--accent)';
+          setTimeout(() => zone.style.borderColor = '', 1500);
+        }
+      };
+      reader.readAsDataURL(file);
+      return; // 最初の画像だけ処理
+    }
+  }
+}
+
+// iPhone Safari: ペーストボタンを追加（クリップボードAPI経由）
+async function pasteFromClipboard(habit) {
+  activeZone = habit;
+  try {
+    // Clipboard API（モダンブラウザ）
+    if (navigator.clipboard && navigator.clipboard.read) {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const imageType = item.types.find(t => t.startsWith('image/'));
+        if (imageType) {
+          const blob = await item.getType(imageType);
+          const reader = new FileReader();
+          reader.onload = ev => {
+            imageCache[habit] = ev.target.result;
+            const preview = document.getElementById(`preview-${habit}`);
+            preview.src = ev.target.result;
+            preview.classList.add('visible');
+            toast(`📋 クリップボードから読み込みました！`);
+          };
+          reader.readAsDataURL(blob);
+          return;
+        }
+      }
+      toast('⚠️ クリップボードに画像がありません');
+    } else {
+      // フォールバック: ペーストイベントを促す
+      toast('📋 このゾーンをタップして長押し→「ペースト」を選んでください');
+      document.getElementById(`zone-${habit}`).focus();
+    }
+  } catch(e) {
+    // 権限エラーの場合は手動ペーストを促す
+    toast('📋 ゾーンを長押し→「ペースト」でスクショを追加できます');
+    document.getElementById(`zone-${habit}`).focus();
+  }
+}
 </script>
 </body>
 </html>
