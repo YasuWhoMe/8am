@@ -1324,7 +1324,7 @@ JSON形式で: {"type": "種類", "duration": "xx分", "calories": "xxx kcal ま
 }
 
 // Manual input
-function manualInput(habit) {
+async function manualInput(habit) {
   if (habit === 'weight') {
     const w = prompt('体重を入力 (例: 70.5)');
     const t = prompt('記録時刻を入力 (例: 07:15)');
@@ -1334,7 +1334,7 @@ function manualInput(habit) {
       document.getElementById('val-weight').textContent = w + ' kg';
       document.getElementById('val-weight-time').textContent = t || '--';
       document.getElementById('data-weight').style.display = 'block';
-      toast('✏️ 手入力で記録しました');
+      toast('✏️ 手入力で記録しました。「完了」を押してください');
     }
   } else if (habit === 'gym') {
     const type = prompt('運動の種類 (例: ジム、ランニング、ストレッチ)');
@@ -1348,13 +1348,13 @@ function manualInput(habit) {
       document.getElementById('val-gym-duration').textContent = dur || '--';
       document.getElementById('val-gym-cal').textContent = cal || '--';
       document.getElementById('data-gym').style.display = 'block';
-      toast('✏️ 手入力で記録しました');
+      toast('✏️ 手入力で記録しました。「完了」を押してください');
     }
   }
 }
 
 // Complete habit
-function completeHabit(habit) {
+async function completeHabit(habit) {
   const card = document.getElementById(`card-${habit}`);
   
   if (habit === 'trade') {
@@ -1364,7 +1364,6 @@ function completeHabit(habit) {
       toast('⚠️ 銘柄と方向を入力してください');
       return;
     }
-    // 確定ボタンを押した瞬間のタイムスタンプ
     const now = new Date();
     const timestamp = now.toTimeString().slice(0, 5);
 
@@ -1376,7 +1375,6 @@ function completeHabit(habit) {
       note: document.getElementById('trade-note').value
     };
 
-    // UIを確定後表示に切り替え
     document.getElementById('trade-input-area').style.display = 'none';
     document.getElementById('trade-confirmed-area').style.display = 'block';
     document.getElementById('confirmed-symbol').textContent = symbol;
@@ -1384,7 +1382,6 @@ function completeHabit(habit) {
     document.getElementById('confirmed-time').textContent = timestamp;
     document.getElementById('trade-note-edit').value = state.trade.note;
 
-    // 8時以降かチェックして色を変える
     const isLate = now.getHours() >= 8;
     document.getElementById('confirmed-time').style.color = isLate ? 'var(--danger)' : 'var(--accent)';
 
@@ -1394,11 +1391,11 @@ function completeHabit(habit) {
 
   card.classList.add('completed');
   updateScore();
-  saveTodayProgress();
+  await saveTodayProgress();
   toast(`✅ ${habit === 'weight' ? '体重測定' : habit === 'gym' ? '運動' : 'トレードシナリオ'}を完了！`);
 }
 
-function resetTrade() {
+async function resetTrade() {
   if (!confirm('シナリオをやり直しますか？')) return;
   state.trade = { completed: false, symbol: null, dir: null, time: null, note: null };
   document.getElementById('trade-input-area').style.display = 'block';
@@ -1408,14 +1405,14 @@ function resetTrade() {
   document.getElementById('trade-note').value = '';
   document.getElementById('card-trade').classList.remove('completed');
   updateScore();
-  saveTodayProgress();
+  await saveTodayProgress();
   toast('↩ シナリオをリセットしました');
 }
 
-function updateMemo() {
+async function updateMemo() {
   state.trade.note = document.getElementById('trade-note-edit').value;
-  saveTodayProgress();
-  toast('📝 メモを更新しました。「保存 & Sheets同期」で反映されます');
+  await saveTodayProgress();
+  toast('📝 メモを更新しました');
 }
 
 // AI trade evaluation
