@@ -1460,7 +1460,16 @@ function doGet(e) {
 async function loadStorage() {
   try {
     const h = await store.get('habit-history');
-    if (h) state.history = JSON.parse(h.value);
+    if (h) {
+      const loaded = JSON.parse(h.value);
+      // 日付重複を除去（最新を優先）
+      const seen = new Set();
+      state.history = loaded.filter(r => {
+        if (seen.has(r.date)) return false;
+        seen.add(r.date);
+        return true;
+      });
+    }
     renderHistory();
     updateStreak();
   } catch(e) {}
@@ -1499,7 +1508,7 @@ async function restoreTodayProgress() {
     const t = await store.get('habit-today');
     if (!t) return;
     const progress = JSON.parse(t.value);
-    const today = new Date().toISOString().split('T')[0];
+    const d = new Date(); const today = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
     // 日付が違ったら復元しない
     if (progress.date !== today) return;
 
@@ -1873,7 +1882,7 @@ async function saveToday() {
   const today = new Date().toLocaleDateString('ja-JP', {month:'2-digit', day:'2-digit'});
   
   const row = {
-    date: new Date().toISOString().split('T')[0],
+    date: (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })(),
     dateLabel: today,
     weight: state.weight.value || '--',
     weightTime: state.weight.time || '--',
