@@ -1360,7 +1360,7 @@ async function syncToSheets(row) {
       action: 'append',
       sheetName: cfg.sheetName,
       data: JSON.stringify([
-        row.date, row.dow, row.weight, row.weightTime,
+        row.date, row.dow, row.isWeekday, row.weight, row.weightTime,
         row.gymType, row.gymDuration, row.gymCal,
         row.tradeSymbol, row.tradeDir, row.tradeTime,
         row.tradeNote, row.score + '/3', row.bonusScore
@@ -1397,9 +1397,9 @@ function doGet(e) {
 
     if (!sheet) {
       sheet = ss.insertSheet(sheetName);
-      sheet.appendRow(['日付','曜日','体重','体重時刻','運動種類','運動時間','カロリー',
+      sheet.appendRow(['日付','曜日','平日','体重','体重時刻','運動種類','運動時間','カロリー',
         '銘柄','方向','確定時刻','メモ','スコア','ボーナス']);
-      sheet.getRange(1,1,1,13).setFontWeight('bold')
+      sheet.getRange(1,1,1,14).setFontWeight('bold')
         .setBackground('#1a1a2e').setFontColor('#ffffff');
     }
 
@@ -1884,6 +1884,7 @@ async function saveToday() {
   const row = {
     date: (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })(),
     dow: ['日','月','火','水','木','金','土'][new Date().getDay()],
+    isWeekday: [1,5].includes(new Date().getDay()) ? 0 : 1,
     dateLabel: today,
     weight: state.weight.value || '--',
     weightTime: state.weight.time || '--',
