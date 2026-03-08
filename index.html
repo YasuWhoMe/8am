@@ -1884,7 +1884,7 @@ async function saveToday() {
   const row = {
     date: (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })(),
     dow: ['日','月','火','水','木','金','土'][new Date().getDay()],
-    isWeekday: [1,5].includes(new Date().getDay()) ? 0 : 1,
+    isWeekday: [0,6].includes(new Date().getDay()) ? 0 : 1,
     dateLabel: today,
     weight: state.weight.value || '--',
     weightTime: state.weight.time || '--',
